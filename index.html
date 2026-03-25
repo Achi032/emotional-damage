@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EMOTIONAL DAMAGE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 主選單 -->
+    <section id="menu-view" class="view active">
+      <header class="menu-header">
+        <h1 class="logo">EMOTIONAL<br>DAMAGE</h1>
+        <p class="tagline">選一種方式，把它釋放出去。</p>
+      </header>
+      <nav class="mode-grid">
+        <button class="mode-card" data-mode="text">
+          <span class="mode-icon">🔥</span>
+          <span class="mode-name">文字發洩</span>
+          <span class="mode-desc">寫出來，然後燒掉它</span>
+        </button>
+        <button class="mode-card" data-mode="smash">
+          <span class="mode-icon">💥</span>
+          <span class="mode-name">砸東西</span>
+          <span class="mode-desc">把這些東西砸個稀爛</span>
+        </button>
+        <button class="mode-card" data-mode="bubbles">
+          <span class="mode-icon">🫧</span>
+          <span class="mode-name">氣泡爆破</span>
+          <span class="mode-desc">一個一個，全部戳破</span>
+        </button>
+        <button class="mode-card" data-mode="scream">
+          <span class="mode-icon">📢</span>
+          <span class="mode-name">尖叫偵測</span>
+          <span class="mode-desc">盡情叫出來</span>
+        </button>
+        <button class="mode-card" data-mode="tear">
+          <span class="mode-icon">📄</span>
+          <span class="mode-name">撕文件</span>
+          <span class="mode-desc">用力扯掉那份文件</span>
+        </button>
+      </nav>
+      <footer class="menu-footer">
+        <span id="total-released"></span>
+      </footer>
+    </section>
+
+    <!-- 模式 view -->
+    <section id="mode-view" class="view">
+      <button id="back-btn" title="返回選單">← 返回</button>
+      <div id="mode-container"></div>
+    </section>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

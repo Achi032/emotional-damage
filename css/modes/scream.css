@@ -1,0 +1,154 @@
+.scream-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 1.5rem;
+  background: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+  transition: background 0.3s;
+}
+
+.scream-bg-pulse {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255,45,85,0) 0%, transparent 70%);
+  pointer-events: none;
+  transition: background 0.1s;
+}
+
+.scream-flash-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--accent-red);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scream-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  color: var(--text-dim);
+  letter-spacing: 0.15em;
+  z-index: 1;
+}
+
+.scream-meter-wrap {
+  position: relative;
+  z-index: 1;
+}
+
+.scream-canvas {
+  display: block;
+}
+
+.scream-level-text {
+  text-align: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  letter-spacing: 0.1em;
+  color: var(--accent-red);
+  text-shadow: 0 0 30px rgba(255,45,85,0.6);
+  transition: color 0.1s, text-shadow 0.1s;
+  z-index: 1;
+  position: relative;
+}
+
+.scream-damage-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2rem, 8vw, 5rem);
+  color: var(--accent-red);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 40px rgba(255,45,85,0.9);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  text-align: center;
+}
+
+.scream-damage-text.show {
+  animation: explodeText 1.5s ease forwards;
+}
+
+.scream-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  z-index: 1;
+}
+
+.scream-start-btn {
+  background: linear-gradient(135deg, var(--accent-red), var(--accent-orange));
+  border: none;
+  border-radius: 50%;
+  width: 90px;
+  height: 90px;
+  font-size: 2rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 24px rgba(255,45,85,0.4);
+}
+
+.scream-start-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 40px rgba(255,45,85,0.6);
+}
+
+.scream-start-btn:active {
+  transform: scale(0.96);
+}
+
+.scream-status {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+.scream-status.listening {
+  color: var(--accent-green);
+}
+
+.scream-tap-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 90px;
+  height: 90px;
+  font-size: 2.5rem;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.15s;
+  display: none;
+}
+
+.scream-tap-btn:active {
+  transform: scale(0.9);
+  box-shadow: 0 0 30px rgba(255,45,85,0.5);
+}
+
+.scream-record {
+  color: var(--accent-red);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  animation: pulseGlow 1s ease infinite;
+  display: none;
+}
+
+.scream-record.visible { display: block; }
+
+.scream-peak {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  z-index: 1;
+}
+
+.scream-peak span { color: var(--accent-orange); }

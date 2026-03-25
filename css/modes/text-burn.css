@@ -1,0 +1,152 @@
+.text-burn-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 4rem 2rem 2rem;
+  gap: 1.2rem;
+  background: radial-gradient(ellipse at 50% 80%, rgba(255,107,53,0.08) 0%, transparent 60%),
+              var(--bg-primary);
+  overflow-y: auto;
+}
+
+.text-burn-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  color: var(--accent-orange);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 20px rgba(255,107,53,0.5);
+}
+
+.text-burn-textarea-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+}
+
+.text-burn-textarea {
+  width: 100%;
+  min-height: 180px;
+  max-height: 40vh;
+  resize: vertical;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,107,53,0.25);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+  padding: 1.2rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  display: block;
+}
+
+.text-burn-textarea:focus {
+  border-color: rgba(255,107,53,0.6);
+  box-shadow: 0 0 20px rgba(255,107,53,0.15);
+}
+
+.text-burn-textarea::placeholder {
+  color: var(--text-dim);
+}
+
+.text-burn-textarea.burning  { animation: burn 1.2s ease forwards; }
+.text-burn-textarea.scatter  { animation: none; }
+.text-burn-textarea.launching { animation: fadeOutUp 1s ease forwards; }
+
+.text-scatter-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.scatter-word {
+  position: absolute;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: 'Noto Sans TC', sans-serif;
+  white-space: nowrap;
+  animation: scatter 0.8s ease forwards;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Destroy method selector */
+.destroy-method {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.destroy-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.destroy-btn.active {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+  background: rgba(255,107,53,0.1);
+}
+
+.destroy-btn:hover:not(.active) {
+  border-color: rgba(255,255,255,0.2);
+  color: var(--text-primary);
+}
+
+.text-burn-submit {
+  background: linear-gradient(135deg, var(--accent-orange), var(--accent-red));
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.1em;
+  padding: 0.6rem 2.5rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(255,107,53,0.3);
+}
+
+.text-burn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(255,107,53,0.5);
+}
+
+.text-burn-submit:active {
+  transform: translateY(0);
+}
+
+.text-burn-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.text-burn-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 12px;
+}
+
+.text-burn-stat {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.text-burn-stat span {
+  color: var(--accent-orange);
+}

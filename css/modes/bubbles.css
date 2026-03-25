@@ -1,0 +1,38 @@
+.bubbles-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(45,156,255,0.1) 0%, transparent 60%),
+              var(--bg-primary);
+  overflow: hidden;
+}
+
+.bubbles-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.bubbles-hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  pointer-events: none;
+  animation: pulseGlow 3s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+.bubbles-score {
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
+  color: var(--accent-blue);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 12px rgba(45,156,255,0.5);
+}
