@@ -1,11 +1,12 @@
 // ===== Scream Detection Mode =====
 import { createParticleSystem } from '../utils/particles.js'
 import { resumeAudio } from '../utils/sound.js'
+import { waitForSize } from '../utils/dom.js'
 
 let raf = null
 let meterCanvas = null
 let meterCtx = null
-let pCanvas = null   // full-screen particle canvas
+let pCanvas = null
 let pCtx = null
 let particles = null
 let audioCtx = null
@@ -29,9 +30,29 @@ let dpr = 1
 let meterSize = 220
 let pW = 0, pH = 0
 
+const DAMAGE_PHRASES = [
+  'EMOTIONAL DAMAGE!',
+  '你還好嗎？',
+  '釋放了！',
+  '爽了吧！',
+  'MAXIMUM PAIN',
+  '壓力清除！',
+  'RELEASED!',
+  '就是這樣！',
+]
+
+const PARTICLE_PALETTES = [
+  ['#ff2d55','#ff6b35','#ffaa00','#fff'],
+  ['#7b2fff','#2d9cff','#0fff6b','#fff'],
+  ['#ff2d55','#ff6b9d','#ffdd00','#fff'],
+  ['#00ffdd','#2d9cff','#7b2fff','#fff'],
+]
+
+function randBetween(a, b) { return a + Math.random() * (b - a) }
+
 function resizeMeter() {
   dpr = window.devicePixelRatio || 1
-  meterSize = Math.min(220, window.innerWidth * 0.5)
+  meterSize = Math.min(220, window.innerWidth * 0.48)
   meterCanvas.style.width = meterSize + 'px'
   meterCanvas.style.height = meterSize + 'px'
   meterCanvas.width = meterSize * dpr
@@ -42,6 +63,7 @@ function resizeMeter() {
 function resizeParticle() {
   if (!pCanvas) return
   const rect = pCanvas.parentElement.getBoundingClientRect()
+  if (rect.width === 0) return
   pW = rect.width; pH = rect.height
   pCanvas.style.width = pW + 'px'
   pCanvas.style.height = pH + 'px'
@@ -68,12 +90,21 @@ function drawMeter(lvl) {
 
   meterCtx.clearRect(0, 0, m, m)
 
-  // Background ring
+  // Background track
   meterCtx.beginPath()
   meterCtx.arc(cx, cy, r, 0, Math.PI * 2)
-  meterCtx.strokeStyle = 'rgba(255,255,255,0.05)'
-  meterCtx.lineWidth = 16
+  meterCtx.strokeStyle = 'rgba(255,255,255,0.06)'
+  meterCtx.lineWidth = 18
   meterCtx.stroke()
+
+  // Glow halo at high levels
+  if (lvl > 0.6) {
+    meterCtx.beginPath()
+    meterCtx.arc(cx, cy, r, 0, Math.PI * 2)
+    meterCtx.strokeStyle = `hsla(${120 - lvl * 120}, 90%, 55%, ${(lvl - 0.6) * 0.3})`
+    meterCtx.lineWidth = 30
+    meterCtx.stroke()
+  }
 
   // Colored arc
   const startAngle = -Math.PI * 0.75
@@ -82,19 +113,20 @@ function drawMeter(lvl) {
   meterCtx.beginPath()
   meterCtx.arc(cx, cy, r, startAngle, endAngle)
   meterCtx.strokeStyle = `hsl(${hue}, 90%, 55%)`
-  meterCtx.lineWidth = 16
+  meterCtx.lineWidth = 18
   meterCtx.lineCap = 'round'
-  meterCtx.shadowColor = `hsl(${hue}, 90%, 55%)`
-  meterCtx.shadowBlur = 20
+  meterCtx.shadowColor = `hsl(${hue}, 90%, 60%)`
+  meterCtx.shadowBlur = lvl > 0.5 ? 25 : 12
   meterCtx.stroke()
   meterCtx.shadowBlur = 0
 
   // Tick marks
   meterCtx.lineWidth = 2
-  meterCtx.strokeStyle = 'rgba(255,255,255,0.1)'
   for (let i = 0; i <= 10; i++) {
     const angle = startAngle + (i / 10) * Math.PI * 1.5
-    const inner = r - 20
+    const isMajor = i % 5 === 0
+    const inner = r - (isMajor ? 22 : 16)
+    meterCtx.strokeStyle = isMajor ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'
     meterCtx.beginPath()
     meterCtx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner)
     meterCtx.lineTo(cx + Math.cos(angle) * (r + 2), cy + Math.sin(angle) * (r + 2))
@@ -105,42 +137,54 @@ function drawMeter(lvl) {
   const needleAngle = startAngle + lvl * Math.PI * 1.5
   meterCtx.beginPath()
   meterCtx.moveTo(cx, cy)
-  meterCtx.lineTo(cx + Math.cos(needleAngle) * (r - 28), cy + Math.sin(needleAngle) * (r - 28))
+  meterCtx.lineTo(cx + Math.cos(needleAngle) * (r - 26), cy + Math.sin(needleAngle) * (r - 26))
   meterCtx.strokeStyle = '#fff'
-  meterCtx.lineWidth = 3
+  meterCtx.lineWidth = 3.5
   meterCtx.lineCap = 'round'
+  meterCtx.shadowColor = 'rgba(255,255,255,0.6)'
+  meterCtx.shadowBlur = 6
   meterCtx.stroke()
+  meterCtx.shadowBlur = 0
 
-  // Center dot
   meterCtx.beginPath()
-  meterCtx.arc(cx, cy, 6, 0, Math.PI * 2)
+  meterCtx.arc(cx, cy, 7, 0, Math.PI * 2)
   meterCtx.fillStyle = '#fff'
+  meterCtx.shadowColor = 'rgba(255,255,255,0.8)'
+  meterCtx.shadowBlur = 10
   meterCtx.fill()
+  meterCtx.shadowBlur = 0
 }
 
 function triggerDamage() {
   if (damageFired) return
   damageFired = true
 
-  if (damageEl) {
-    damageEl.classList.add('show')
-    setTimeout(() => { if (damageEl) { damageEl.classList.remove('show'); damageFired = false } }, 1600)
-  }
-  if (flashEl) {
-    flashEl.style.opacity = '0.5'
-    setTimeout(() => { if (flashEl) flashEl.style.opacity = '0' }, 150)
-    setTimeout(() => { if (flashEl) flashEl.style.opacity = '0.3' }, 250)
-    setTimeout(() => { if (flashEl) flashEl.style.opacity = '0' }, 350)
-  }
+  const phrase = DAMAGE_PHRASES[Math.floor(Math.random() * DAMAGE_PHRASES.length)]
+  if (damageEl) { damageEl.textContent = phrase; damageEl.classList.add('show') }
+  setTimeout(() => { if (damageEl) { damageEl.classList.remove('show'); damageFired = false } }, 1800)
 
-  if (particles) {
-    for (let i = 0; i < 6; i++) {
-      particles.emit(
-        Math.random() * pW,
-        Math.random() * pH * 0.6,
-        25,
-        { colors: ['#ff2d55', '#ff6b35', '#ffaa00', '#fff'], speed: 12, gravity: 0.35, lifetime: 70, size: 6, sizeVariance: 4 }
-      )
+  // Multi-flash with random timing
+  const palette = PARTICLE_PALETTES[Math.floor(Math.random() * PARTICLE_PALETTES.length)]
+  const flashes = [0, randBetween(80, 180), randBetween(200, 350)]
+  flashes.forEach(delay => {
+    setTimeout(() => {
+      if (!flashEl) return
+      flashEl.style.opacity = '0.5'
+      setTimeout(() => { if (flashEl) flashEl.style.opacity = '0' }, 80)
+    }, delay)
+  })
+
+  if (particles && pW > 0) {
+    for (let i = 0; i < 8; i++) {
+      setTimeout(() => {
+        if (!particles) return
+        particles.emit(
+          randBetween(pW * 0.1, pW * 0.9),
+          randBetween(pH * 0.1, pH * 0.7),
+          30,
+          { colors: palette, speed: randBetween(8, 15), gravity: 0.35, lifetime: 75, size: 7, sizeVariance: 5, trail: true }
+        )
+      }, i * randBetween(40, 120))
     }
   }
 }
@@ -151,10 +195,10 @@ function loop() {
   if (listening && analyser && dataArray) {
     analyser.getByteTimeDomainData(dataArray)
     const rms = getRMS(dataArray)
-    const target = Math.min(1, rms * 6)
-    level = level * 0.7 + target * 0.3
+    const target = Math.min(1, rms * 7)
+    level = level * 0.65 + target * 0.35
   } else {
-    level = Math.max(0, level - 0.015)
+    level = Math.max(0, level - 0.016)
     if (tapLevel > 0) {
       level = Math.max(level, tapLevel)
       tapLevel = Math.max(0, tapLevel - 0.04)
@@ -167,17 +211,27 @@ function loop() {
   }
 
   drawMeter(level)
-
-  if (levelTextEl) levelTextEl.textContent = Math.round(level * 100) + '%'
+  if (levelTextEl) {
+    const pct = Math.round(level * 100)
+    levelTextEl.textContent = pct + '%'
+    const hue = 120 - level * 120
+    levelTextEl.style.color = `hsl(${hue}, 90%, 60%)`
+    levelTextEl.style.textShadow = `0 0 ${20 + level * 30}px hsl(${hue}, 90%, 60%)`
+  }
 
   if (bgEl) {
-    const a = level * 0.22
+    const a = level * 0.25
     bgEl.style.background = `radial-gradient(ellipse at 50% 50%, rgba(255,45,85,${a}) 0%, transparent 60%)`
   }
 
-  if (level > 0.7 && container) {
+  // Shake both x and y at high level
+  if (level > 0.65 && container) {
     const c = container.querySelector('.scream-container')
-    if (c) c.style.transform = `translateX(${(Math.random()-0.5) * level * 8}px)`
+    if (c) {
+      const sx = (Math.random() - 0.5) * level * 10
+      const sy = (Math.random() - 0.5) * level * 4
+      c.style.transform = `translate(${sx}px,${sy}px)`
+    }
   } else if (container) {
     const c = container.querySelector('.scream-container')
     if (c) c.style.transform = ''
@@ -185,7 +239,6 @@ function loop() {
 
   if (level > 0.92 && !damageFired) triggerDamage()
 
-  // Draw particles on full-screen canvas
   if (pCtx && particles) {
     pCtx.clearRect(0, 0, pW, pH)
     particles.update()
@@ -264,8 +317,15 @@ export function init(cont) {
   peakEl = cont.querySelector('.scream-peak')
   recordEl = cont.querySelector('.scream-record')
 
-  setTimeout(() => { resizeMeter(); resizeParticle() }, 30)
   window.addEventListener('resize', onResize)
+
+  // Use waitForSize for the particle canvas (full container)
+  waitForSize(cont.querySelector('.scream-container'), () => {
+    resizeMeter()
+    resizeParticle()
+  })
+  // Meter canvas can resize directly by window size
+  resizeMeter()
 
   const startBtn = cont.querySelector('.scream-start-btn')
   const tapBtn = cont.querySelector('.scream-tap-btn')
@@ -276,7 +336,7 @@ export function init(cont) {
   })
 
   tapBtn.addEventListener('pointerdown', () => {
-    tapLevel = Math.min(1, tapLevel + 0.35)
+    tapLevel = Math.min(1, tapLevel + 0.32)
     if (tapLevel > 0.92) triggerDamage()
   })
 

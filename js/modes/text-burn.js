@@ -1,6 +1,7 @@
 // ===== Text Burn Mode =====
 import { createParticleSystem } from '../utils/particles.js'
 import { synth, resumeAudio } from '../utils/sound.js'
+import { waitForSize } from '../utils/dom.js'
 
 let raf = null
 let canvas = null
@@ -11,54 +12,109 @@ let textarea = null
 let submitBtn = null
 let statEl = null
 let animating = false
+let resizeRO = null
 
-function getTotalChars() {
-  return parseInt(localStorage.getItem('ed_total_chars') || '0')
-}
-function addChars(n) {
-  localStorage.setItem('ed_total_chars', getTotalChars() + n)
-}
+const QUOTES = [
+  '說出來真的有用的。',
+  '你已經做得很好了。',
+  '那些話不配繼續佔據你的腦袋。',
+  '燒掉它，繼續走。',
+  '不需要留著它。',
+  '壓力清除完成。',
+  '你比你想的更強。',
+  '煩惱已成灰燼。',
+]
 
-function updateStat() {
+const FLAME_COLORS_POOL = [
+  ['#ff2d00', '#ff6b35', '#ffaa00', '#ffdd00', '#fff'],
+  ['#ff0055', '#ff6b35', '#ff00aa', '#ffdd00', '#fff'],
+  ['#00ddff', '#0055ff', '#7b2fff', '#fff'],
+]
+
+function getTotalChars() { return parseInt(localStorage.getItem('ed_total_chars') || '0') }
+function addChars(n) { localStorage.setItem('ed_total_chars', getTotalChars() + n) }
+
+function updateStat(afterRelease) {
   const n = getTotalChars()
-  if (statEl) statEl.innerHTML = n > 0
-    ? `你已經釋放了 <span>${n.toLocaleString()}</span> 字的壓力`
-    : '寫下任何你想說的，然後毀掉它。'
+  if (afterRelease) {
+    const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)]
+    if (statEl) statEl.innerHTML = `<span style="color:var(--accent-orange)">${quote}</span> 累計 ${n.toLocaleString()} 字`
+  } else {
+    if (statEl) statEl.innerHTML = n > 0
+      ? `你已經釋放了 <span>${n.toLocaleString()}</span> 字的壓力`
+      : '寫下任何你想說的，然後毀掉它。'
+  }
 }
 
-// Flame particle loop
-function startFlameLoop(wrap) {
+function setupCanvas() {
+  if (!canvas) return
+  const wrap = canvas.parentElement
   const rect = wrap.getBoundingClientRect()
-  const containerRect = wrap.parentElement.getBoundingClientRect()
-  const offX = rect.left - containerRect.left
-  const offY = rect.top - containerRect.top
+  if (rect.width === 0) return
+  const dpr = window.devicePixelRatio || 1
+  canvas.style.width = rect.width + 'px'
+  canvas.style.height = rect.height + 'px'
+  canvas.width = rect.width * dpr
+  canvas.height = rect.height * dpr
+  ctx.scale(dpr, dpr)
+}
 
+function startFlameLoop(wrap) {
+  const palette = FLAME_COLORS_POOL[Math.floor(Math.random() * FLAME_COLORS_POOL.length)]
   let t = 0
   function flameLoop() {
     if (!canvas || !animating) return
     raf = requestAnimationFrame(flameLoop)
-    ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1))
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     t++
-    // Emit flame particles along bottom of textarea
-    if (t < 60) {
-      const count = 4 + Math.floor(Math.random() * 4)
-      const px = offX + Math.random() * rect.width
-      const py = offY + rect.height
+    if (t < 70) {
+      const wrapRect = wrap.getBoundingClientRect()
+      const canvRect = canvas.getBoundingClientRect()
+      const offX = wrapRect.left - canvRect.left
+      const offY = wrapRect.top - canvRect.top
+      const count = 5 + Math.floor(Math.random() * 5)
+      const px = offX + Math.random() * wrapRect.width
+      const py = offY + wrapRect.height
       particles.emit(px, py, count, {
-        colors: ['#ff2d00', '#ff6b35', '#ffaa00', '#ffdd00', '#fff'],
-        speed: 3 + Math.random() * 3,
-        gravity: -0.15,
-        lifetime: 50,
-        size: 5,
-        sizeVariance: 4,
+        colors: palette,
+        speed: 3 + Math.random() * 4,
+        gravity: -0.18,
+        lifetime: 55,
+        size: 6,
+        sizeVariance: 5,
         angle: -Math.PI / 2,
-        spread: Math.PI * 0.6,
+        spread: Math.PI * 0.65,
+        trail: true,
       })
     }
     particles.update()
     particles.draw()
   }
   flameLoop()
+}
+
+function scatterWords(text, wrap) {
+  const words = text.replace(/\n/g, ' ').split(/\s+/).filter(Boolean)
+  const overlay = wrap.querySelector('.text-scatter-overlay')
+  const textareaRect = textarea.getBoundingClientRect()
+  const wrapRect = wrap.getBoundingClientRect()
+  textarea.style.opacity = '0'
+
+  words.forEach((word, i) => {
+    const span = document.createElement('span')
+    span.className = 'scatter-word'
+    span.textContent = word
+    const x = Math.random() * (textareaRect.width - 60)
+    const y = Math.random() * (textareaRect.height - 20)
+    span.style.left = (textareaRect.left - wrapRect.left + x) + 'px'
+    span.style.top  = (textareaRect.top  - wrapRect.top  + y) + 'px'
+    const tx = (Math.random() - 0.5) * (600 + Math.random() * 400)
+    const ty = (Math.random() - 0.5) * (400 + Math.random() * 400)
+    const rot = (Math.random() - 0.5) * 360
+    span.style.setProperty('--scatter-to', `translate(${tx}px,${ty}px) rotate(${rot}deg) scale(0)`)
+    span.style.setProperty('--delay', `${i * 0.015}s`)
+    overlay.appendChild(span)
+  })
 }
 
 function doDestroy(wrap) {
@@ -79,57 +135,31 @@ function doDestroy(wrap) {
     textarea.classList.add('burning')
     synth('burn')
     startFlameLoop(wrap)
-    setTimeout(reset, 1300)
-
+    setTimeout(reset, 1400)
   } else if (selectedMethod === 'scatter') {
     scatterWords(text, wrap)
-    setTimeout(reset, 1200)
-
+    setTimeout(reset, 1300)
   } else if (selectedMethod === 'space') {
     textarea.classList.add('launching')
     synth('whoosh')
-    setTimeout(reset, 1100)
+    setTimeout(reset, 1200)
   }
-}
-
-function scatterWords(text, wrap) {
-  const words = text.replace(/\n/g, ' ').split(/\s+/).filter(Boolean)
-  const overlay = wrap.querySelector('.text-scatter-overlay')
-  const rect = textarea.getBoundingClientRect()
-  const wrapRect = wrap.getBoundingClientRect()
-
-  textarea.style.opacity = '0'
-
-  words.forEach((word, i) => {
-    const span = document.createElement('span')
-    span.className = 'scatter-word'
-    span.textContent = word
-    const x = Math.random() * (rect.width - 60)
-    const y = Math.random() * (rect.height - 20)
-    span.style.left = (rect.left - wrapRect.left + x) + 'px'
-    span.style.top = (rect.top - wrapRect.top + y) + 'px'
-    const tx = (Math.random() - 0.5) * 400
-    const ty = (Math.random() - 0.5) * 400
-    span.style.setProperty('--scatter-to', `translate(${tx}px, ${ty}px) rotate(${(Math.random()-0.5)*180}deg) scale(0)`)
-    span.style.setProperty('--delay', `${i * 0.02}s`)
-    overlay.appendChild(span)
-  })
 }
 
 function reset() {
   animating = false
+  cancelAnimationFrame(raf)
   if (!textarea) return
   textarea.classList.remove('burning', 'scatter', 'launching')
   textarea.style.opacity = ''
   textarea.style.animation = ''
   textarea.value = ''
   if (submitBtn) submitBtn.disabled = false
-  if (canvas) ctx.clearRect(0, 0, canvas.width, canvas.height)
+  if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height)
   if (particles) particles.clear()
   const overlay = document.querySelector('.text-scatter-overlay')
   if (overlay) overlay.innerHTML = ''
-  updateStat()
-  cancelAnimationFrame(raf)
+  updateStat(true)
 }
 
 export function init(container) {
@@ -164,25 +194,16 @@ export function init(container) {
   statEl = container.querySelector('.text-burn-stat')
   canvas = container.querySelector('.text-burn-canvas')
   ctx = canvas.getContext('2d')
+  particles = createParticleSystem(canvas)
   selectedMethod = 'burn'
 
-  // Setup canvas size
-  const dpr = window.devicePixelRatio || 1
-  function resizeCanvas() {
-    const wrap = container.querySelector('.text-burn-textarea-wrap')
-    const rect = wrap.getBoundingClientRect()
-    canvas.style.width = rect.width + 'px'
-    canvas.style.height = rect.height + 'px'
-    canvas.width = rect.width * dpr
-    canvas.height = rect.height * dpr
-    ctx.scale(dpr, dpr)
-  }
-  setTimeout(resizeCanvas, 50)
-  window.addEventListener('resize', resizeCanvas)
+  const wrap = container.querySelector('.text-burn-textarea-wrap')
 
-  particles = createParticleSystem(canvas)
+  // Use ResizeObserver for canvas sizing
+  resizeRO = new ResizeObserver(() => setupCanvas())
+  resizeRO.observe(wrap)
+  waitForSize(wrap, setupCanvas)
 
-  // Method buttons
   container.querySelectorAll('.destroy-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       selectedMethod = btn.dataset.method
@@ -191,26 +212,17 @@ export function init(container) {
     })
   })
 
-  const wrap = container.querySelector('.text-burn-textarea-wrap')
   submitBtn.addEventListener('click', () => doDestroy(wrap))
   textarea.addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) doDestroy(wrap)
   })
 
-  updateStat()
-
-  return () => { window.removeEventListener('resize', resizeCanvas) }
+  updateStat(false)
 }
 
 export function destroy() {
   cancelAnimationFrame(raf)
-  window.removeEventListener('resize', () => {})
-  raf = null
-  canvas = null
-  ctx = null
-  particles = null
-  textarea = null
-  submitBtn = null
-  statEl = null
-  animating = false
+  if (resizeRO) { resizeRO.disconnect(); resizeRO = null }
+  raf = null; canvas = null; ctx = null; particles = null
+  textarea = null; submitBtn = null; statEl = null; animating = false
 }

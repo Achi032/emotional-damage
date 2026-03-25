@@ -1,6 +1,7 @@
 // ===== Smash Mode =====
 import { createParticleSystem } from '../utils/particles.js'
 import { synth, resumeAudio } from '../utils/sound.js'
+import { waitForSize } from '../utils/dom.js'
 
 let raf = null
 let canvas = null
@@ -14,19 +15,11 @@ let container = null
 let w = 0, h = 0, dpr = 1
 
 const ITEMS = [
-  { emoji: '💻', label: '筆電' },
-  { emoji: '🖥️', label: '螢幕' },
-  { emoji: '☕', label: '咖啡' },
-  { emoji: '📄', label: '報表' },
-  { emoji: '⌨️', label: '鍵盤' },
-  { emoji: '📱', label: '手機' },
-  { emoji: '🖨️', label: '印表機' },
-  { emoji: '📊', label: '圖表' },
-  { emoji: '📅', label: '行事曆' },
-  { emoji: '🗂️', label: '文件' },
+  '💻','🖥️','☕','📄','⌨️','📱','🖨️','📊','📅','🗂️',
+  '📋','🖊️','📌','🗑️','💾','📡','🔋','📎','✂️','🗄️',
 ]
 
-const SHARD_EMOJIS = ['💥', '✨', '⚡', '🔥']
+const CRASH_TEXTS = ['💥','✨','⚡','🔥','💢','🌋','☄️','🤯']
 
 let dragging = null
 let dragOffsetX = 0
@@ -45,20 +38,29 @@ function resize() {
   ctx.scale(dpr, dpr)
 }
 
-function spawnObject(item) {
+function randBetween(a, b) { return a + Math.random() * (b - a) }
+
+function spawnObject(emoji) {
   const el = document.createElement('div')
   el.className = 'smash-object'
-  el.textContent = item.emoji
-  el.title = item.label
+  el.textContent = emoji
 
-  const size = 48
+  const size = 32
   const x = size + Math.random() * (w - size * 2)
-  const y = size + Math.random() * (h * 0.7)
+  const y = size + Math.random() * (h * 0.75)
   el.style.left = x + 'px'
   el.style.top = y + 'px'
-  el.style.fontSize = (2.2 + Math.random() * 1.2) + 'rem'
+  el.style.fontSize = randBetween(1.8, 3.5) + 'rem'
+  el.style.transform = `rotate(${randBetween(-20, 20)}deg)`
 
-  const obj = { el, x, y, vx: 0, vy: 0, alive: true, flying: false, rotation: 0, rotVel: 0 }
+  const obj = {
+    el, x, y,
+    vx: (Math.random() - 0.5) * 1.2,  // slight random drift
+    vy: (Math.random() - 0.5) * 0.8,
+    alive: true, flying: false,
+    rotation: randBetween(-20, 20),
+    rotVel: 0,
+  }
 
   el.addEventListener('mousedown', e => startDrag(e, obj))
   el.addEventListener('touchstart', e => startDrag(e, obj), { passive: false })
@@ -68,16 +70,15 @@ function spawnObject(item) {
 }
 
 function spawnAll() {
-  objects.forEach(o => o.el.remove())
+  objects.forEach(o => o.el?.remove())
   objects = []
-  const picks = [...ITEMS].sort(() => Math.random() - 0.5).slice(0, 8)
-  picks.forEach(item => spawnObject(item))
+  const count = 7 + Math.floor(Math.random() * 4)
+  const pool = [...ITEMS].sort(() => Math.random() - 0.5).slice(0, count)
+  pool.forEach(emoji => spawnObject(emoji))
 }
 
 function getEventPos(e) {
-  if (e.touches) {
-    return { x: e.touches[0].clientX, y: e.touches[0].clientY }
-  }
+  if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY }
   return { x: e.clientX, y: e.clientY }
 }
 
@@ -88,14 +89,13 @@ function startDrag(e, obj) {
   dragging = obj
   const pos = getEventPos(e)
   const rect = obj.el.getBoundingClientRect()
-  const contRect = obj.el.parentElement.getBoundingClientRect()
   dragOffsetX = pos.x - rect.left - rect.width / 2
   dragOffsetY = pos.y - rect.top - rect.height / 2
+  const contRect = obj.el.parentElement.getBoundingClientRect()
   lastX = pos.x - contRect.left
   lastY = pos.y - contRect.top
   lastTime = performance.now()
-  velX = 0
-  velY = 0
+  velX = 0; velY = 0
   obj.el.classList.add('dragging')
   obj.flying = false
 }
@@ -106,13 +106,11 @@ function onMove(e) {
   const contRect = dragging.el.parentElement.getBoundingClientRect()
   const cx = pos.x - contRect.left
   const cy = pos.y - contRect.top
-
   const now = performance.now()
   const dt = Math.max(1, now - lastTime)
   velX = (cx - lastX) / dt * 16
   velY = (cy - lastY) / dt * 16
   lastX = cx; lastY = cy; lastTime = now
-
   dragging.x = cx - dragOffsetX
   dragging.y = cy - dragOffsetY
   dragging.el.style.left = dragging.x + 'px'
@@ -123,14 +121,31 @@ function endDrag() {
   if (!dragging) return
   dragging.el.classList.remove('dragging')
   const speed = Math.sqrt(velX * velX + velY * velY)
-  if (speed > 3) {
+  if (speed > 2) {
     dragging.vx = velX
     dragging.vy = velY
-    dragging.rotVel = (Math.random() - 0.5) * 15
+    dragging.rotVel = (Math.random() - 0.5) * 20
     dragging.flying = true
     synth('whoosh')
   }
   dragging = null
+}
+
+function chainReaction(originObj) {
+  // Knock nearby alive objects
+  for (const obj of objects) {
+    if (!obj.alive || obj === originObj) continue
+    const dx = obj.x - originObj.x
+    const dy = obj.y - originObj.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < 200) {
+      const push = (200 - dist) / 200 * 15
+      obj.vx += (dx / dist) * push * randBetween(0.5, 1.5)
+      obj.vy += (dy / dist) * push * randBetween(0.3, 1.0) - 2
+      obj.rotVel = (Math.random() - 0.5) * 25
+      obj.flying = true
+    }
+  }
 }
 
 function smashObject(obj) {
@@ -142,59 +157,60 @@ function smashObject(obj) {
 
   synth('smash')
 
-  // Flash
   if (flashEl) {
     flashEl.classList.add('active')
     setTimeout(() => flashEl && flashEl.classList.remove('active'), 80)
   }
 
-  // Particles
-  particles.emit(obj.x, obj.y, 30, {
-    colors: ['#ff2d55', '#ff6b35', '#ffaa00', '#fff', '#ff6b9d'],
-    speed: 8 + Math.random() * 4,
-    gravity: 0.4,
-    lifetime: 55,
-    size: 5,
-    sizeVariance: 4,
+  // Lots of particles with trail
+  particles.emit(obj.x, obj.y, 50, {
+    colors: ['#ff2d55','#ff6b35','#ffaa00','#fff','#ff6b9d','#ffdd00'],
+    speed: randBetween(8, 14),
+    gravity: 0.45,
+    lifetime: 65,
+    size: 7,
+    sizeVariance: 5,
+    trail: true,
   })
 
-  // Shard emojis
-  for (let i = 0; i < 5; i++) {
+  // Crash text shards
+  for (let i = 0; i < 6; i++) {
     const shard = document.createElement('div')
+    const tx = (Math.random() - 0.5) * 220
+    const ty = (Math.random() - 0.5) * 150
     shard.style.cssText = `
-      position:absolute;
-      font-size:1.5rem;
-      pointer-events:none;
-      left:${obj.x - 12}px;
-      top:${obj.y - 12}px;
-      z-index:5;
-      animation: fallDown 0.7s ease forwards;
-    `
-    shard.textContent = SHARD_EMOJIS[Math.floor(Math.random() * SHARD_EMOJIS.length)]
-    const tx = (Math.random() - 0.5) * 180
-    const ty = (Math.random() - 0.5) * 120
-    const rot = (Math.random() - 0.5) * 360 + 'deg'
-    shard.style.setProperty('--fall-start', `translate(0,0)`)
-    shard.style.setProperty('--fall-end', `translate(${tx}px, ${ty}px)`)
-    shard.style.setProperty('--fall-rot', rot)
+      position:absolute; font-size:${randBetween(1.2, 2.5)}rem;
+      pointer-events:none; left:${obj.x - 16}px; top:${obj.y - 16}px;
+      z-index:5; animation:fallDown 0.8s ease forwards;`
+    shard.textContent = CRASH_TEXTS[Math.floor(Math.random() * CRASH_TEXTS.length)]
+    shard.style.setProperty('--fall-start', 'translate(0,0)')
+    shard.style.setProperty('--fall-end', `translate(${tx}px,${ty}px)`)
+    shard.style.setProperty('--fall-rot', `${(Math.random()-0.5)*400}deg`)
     container.querySelector('.smash-container').appendChild(shard)
-    setTimeout(() => shard.remove(), 800)
+    setTimeout(() => shard.remove(), 900)
   }
 
-  // Shake screen
+  // Shake
   const c = container.querySelector('.smash-container')
-  c.style.animation = 'shake 0.3s ease'
-  setTimeout(() => { if (c) c.style.animation = '' }, 300)
+  const intensity = randBetween(5, 12)
+  c.style.animation = 'none'
+  requestAnimationFrame(() => {
+    c.style.animation = `shake 0.35s ease`
+    c.style.setProperty('--shake-amount', intensity + 'px')
+  })
+  setTimeout(() => { if (c) c.style.animation = '' }, 350)
+
+  // Chain reaction (random chance)
+  if (Math.random() < 0.4) chainReaction(obj)
 
   obj.el.remove()
 
-  // Check if all smashed
   const alive = objects.filter(o => o.alive)
   if (alive.length === 0) {
     setTimeout(() => {
       const respawn = container.querySelector('.respawn-btn')
       if (respawn) respawn.style.display = 'block'
-    }, 500)
+    }, 600)
   }
 }
 
@@ -206,43 +222,28 @@ function loop() {
     if (!obj.flying || !obj.alive) continue
     obj.x += obj.vx
     obj.y += obj.vy
-    obj.vy += 0.5 // gravity
+    obj.vy += 0.55
     obj.vx *= 0.99
     obj.rotation += obj.rotVel
-
     obj.el.style.left = obj.x + 'px'
     obj.el.style.top = obj.y + 'px'
     obj.el.style.transform = `rotate(${obj.rotation}deg)`
 
     const speed = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy)
+    const size = 28
 
-    // Hit walls
-    const size = 24
-    if (obj.x < -size || obj.x > w + size || obj.y > h + size) {
-      if (speed > 5) {
-        smashObject(obj)
-      } else {
+    if (obj.x < -60 || obj.x > w + 60 || obj.y > h + 60) {
+      if (speed > 3) { smashObject(obj); continue }
+      else {
         obj.flying = false
-        obj.x = Math.max(size, Math.min(w - size, obj.x))
-        obj.y = Math.min(h - size, obj.y)
         obj.vx = 0; obj.vy = 0
-        obj.el.style.left = obj.x + 'px'
-        obj.el.style.top = obj.y + 'px'
       }
     }
-
-    // Bounce off sides
-    if (obj.x < size && obj.vx < 0) { obj.vx *= -0.6; obj.x = size }
-    if (obj.x > w - size && obj.vx > 0) { obj.vx *= -0.6; obj.x = w - size }
+    if (obj.x < size && obj.vx < 0) { obj.vx *= -0.55; obj.x = size; if (speed > 3) smashObject(obj) }
+    else if (obj.x > w - size && obj.vx > 0) { obj.vx *= -0.55; obj.x = w - size; if (speed > 3) smashObject(obj) }
     if (obj.y > h - size && obj.vy > 0) {
-      if (speed > 8) {
-        smashObject(obj)
-      } else {
-        obj.vy *= -0.3
-        obj.vx *= 0.7
-        obj.y = h - size
-        obj.flying = Math.abs(obj.vy) > 1
-      }
+      if (speed > 6) { smashObject(obj) }
+      else { obj.vy *= -0.35; obj.vx *= 0.65; obj.y = h - size; obj.flying = Math.abs(obj.vy) > 0.8 }
     }
   }
 
@@ -254,14 +255,15 @@ export function init(cont) {
   container = cont
   smashCount = 0
   objects = []
+  dragging = null
 
   cont.innerHTML = `
     <div class="smash-container">
       <canvas class="smash-canvas"></canvas>
       <div class="smash-flash"></div>
       <div class="smash-counter">💥 0</div>
-      <div class="smash-hint">拖動物品，用力甩出去！</div>
-      <button class="respawn-btn" style="display:none">重新生成物品</button>
+      <div class="smash-hint">拖住物品，用力甩出去！</div>
+      <button class="respawn-btn" style="display:none">再來一次</button>
     </div>
   `
 
@@ -271,8 +273,6 @@ export function init(cont) {
   flashEl = cont.querySelector('.smash-flash')
   particles = createParticleSystem(canvas)
 
-  resize()
-  window.addEventListener('resize', resize)
   window.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', endDrag)
   window.addEventListener('touchmove', onMove, { passive: false })
@@ -283,8 +283,12 @@ export function init(cont) {
     spawnAll()
   })
 
-  spawnAll()
-  raf = requestAnimationFrame(loop)
+  waitForSize(canvas, () => {
+    resize()
+    window.addEventListener('resize', resize)
+    spawnAll()
+    raf = requestAnimationFrame(loop)
+  })
 }
 
 export function destroy() {
@@ -294,11 +298,8 @@ export function destroy() {
   window.removeEventListener('mouseup', endDrag)
   window.removeEventListener('touchmove', onMove)
   window.removeEventListener('touchend', endDrag)
+  objects.forEach(o => o.el?.remove())
   objects = []
   dragging = null
-  raf = null
-  canvas = null
-  ctx = null
-  particles = null
-  container = null
+  raf = null; canvas = null; ctx = null; particles = null; container = null
 }
