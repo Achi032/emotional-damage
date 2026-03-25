@@ -82,9 +82,12 @@ let currentDoc = null
 
 function resize() {
   dpr = window.devicePixelRatio || 1
-  const rect = canvas.getBoundingClientRect()
-  w = rect.width
-  h = rect.height
+  const parent = canvas.parentElement
+  const rect = parent.getBoundingClientRect()
+  w = rect.width || window.innerWidth
+  h = rect.height || window.innerHeight
+  canvas.style.width = w + 'px'
+  canvas.style.height = h + 'px'
   canvas.width = w * dpr
   canvas.height = h * dpr
   ctx.scale(dpr, dpr)
@@ -290,9 +293,6 @@ export function init(cont) {
   ctx = canvas.getContext('2d')
   countEl = cont.querySelector('.tear-count')
 
-  canvas.style.width = '100%'
-  canvas.style.height = '100%'
-
   canvas.addEventListener('mousedown', onDown)
   canvas.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', onUp)
@@ -300,7 +300,7 @@ export function init(cont) {
   canvas.addEventListener('touchmove', onMove, { passive: false })
   window.addEventListener('touchend', onUp)
 
-  waitForSize(canvas, () => {
+  waitForSize(cont.querySelector('.tear-container'), () => {
     resize()
     window.addEventListener('resize', () => { resize(); drawPaper() })
     drawPaper()

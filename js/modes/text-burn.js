@@ -50,12 +50,13 @@ function setupCanvas() {
   if (!canvas) return
   const wrap = canvas.parentElement
   const rect = wrap.getBoundingClientRect()
-  if (rect.width === 0) return
   const dpr = window.devicePixelRatio || 1
-  canvas.style.width = rect.width + 'px'
-  canvas.style.height = rect.height + 'px'
-  canvas.width = rect.width * dpr
-  canvas.height = rect.height * dpr
+  const cw = rect.width || wrap.offsetWidth || 600
+  const ch = rect.height || wrap.offsetHeight || 300
+  canvas.style.width = cw + 'px'
+  canvas.style.height = ch + 'px'
+  canvas.width = cw * dpr
+  canvas.height = ch * dpr
   ctx.scale(dpr, dpr)
 }
 

@@ -62,9 +62,10 @@ function resizeMeter() {
 
 function resizeParticle() {
   if (!pCanvas) return
-  const rect = pCanvas.parentElement.getBoundingClientRect()
-  if (rect.width === 0) return
-  pW = rect.width; pH = rect.height
+  const parent = pCanvas.parentElement
+  const rect = parent.getBoundingClientRect()
+  pW = rect.width || window.innerWidth
+  pH = rect.height || window.innerHeight
   pCanvas.style.width = pW + 'px'
   pCanvas.style.height = pH + 'px'
   pCanvas.width = pW * dpr
@@ -319,13 +320,10 @@ export function init(cont) {
 
   window.addEventListener('resize', onResize)
 
-  // Use waitForSize for the particle canvas (full container)
+  resizeMeter()
   waitForSize(cont.querySelector('.scream-container'), () => {
-    resizeMeter()
     resizeParticle()
   })
-  // Meter canvas can resize directly by window size
-  resizeMeter()
 
   const startBtn = cont.querySelector('.scream-start-btn')
   const tapBtn = cont.querySelector('.scream-tap-btn')

@@ -30,9 +30,12 @@ let velX = 0, velY = 0
 
 function resize() {
   dpr = window.devicePixelRatio || 1
-  const rect = canvas.getBoundingClientRect()
-  w = rect.width
-  h = rect.height
+  const parent = canvas.parentElement
+  const rect = parent.getBoundingClientRect()
+  w = rect.width || window.innerWidth
+  h = rect.height || window.innerHeight
+  canvas.style.width = w + 'px'
+  canvas.style.height = h + 'px'
   canvas.width = w * dpr
   canvas.height = h * dpr
   ctx.scale(dpr, dpr)
@@ -283,7 +286,7 @@ export function init(cont) {
     spawnAll()
   })
 
-  waitForSize(canvas, () => {
+  waitForSize(canvas.parentElement, () => {
     resize()
     window.addEventListener('resize', resize)
     spawnAll()

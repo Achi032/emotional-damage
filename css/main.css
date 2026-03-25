@@ -191,6 +191,7 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-height: 0; /* critical: lets flex child propagate height to % children */
 }
 
 /* ===== Shared Keyframes ===== */

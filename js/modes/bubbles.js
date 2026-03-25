@@ -23,9 +23,12 @@ const LABELS = [
 
 function resize() {
   dpr = window.devicePixelRatio || 1
-  const rect = canvas.getBoundingClientRect()
-  w = rect.width
-  h = rect.height
+  const parent = canvas.parentElement
+  const rect = parent.getBoundingClientRect()
+  w = rect.width || window.innerWidth
+  h = rect.height || window.innerHeight
+  canvas.style.width = w + 'px'
+  canvas.style.height = h + 'px'
   canvas.width = w * dpr
   canvas.height = h * dpr
   ctx.scale(dpr, dpr)
@@ -216,7 +219,7 @@ export function init(container) {
   canvas.addEventListener('click', onPointer)
   canvas.addEventListener('touchstart', onPointer, { passive: true })
 
-  waitForSize(canvas, () => {
+  waitForSize(canvas.parentElement, () => {
     resize()
     window.addEventListener('resize', resize)
     spawnInitialBubbles()

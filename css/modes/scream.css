@@ -1,12 +1,12 @@
 .scream-container {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
   gap: 1.5rem;
   background: var(--bg-primary);
-  position: relative;
   overflow: hidden;
   transition: background 0.3s;
 }
